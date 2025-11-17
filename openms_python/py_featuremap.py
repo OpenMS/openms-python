@@ -252,7 +252,7 @@ class Py_FeatureMap:
                 return value
         return value
       
-    def _as_native_feature(feature: Union[oms.Feature, Py_Feature]) -> oms.Feature:
+    def _as_native_feature(self, feature: Union[oms.Feature, Py_Feature]) -> oms.Feature:
         if isinstance(feature, Py_Feature):
             return feature.native
         if isinstance(feature, oms.Feature):
