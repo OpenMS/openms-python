@@ -2,11 +2,19 @@
 Pythonic wrapper for pyOpenMS MSExperiment class.
 """
 
-from typing import Iterator, Optional, List, Union
+from pathlib import Path
+from typing import Iterator, Optional, List, Union, Sequence, Dict, Any, Iterable
 import pandas as pd
 import numpy as np
 import pyopenms as oms
 from .py_msspectrum import Py_MSSpectrum
+from ._io_utils import ensure_allowed_suffix, MS_EXPERIMENT_EXTENSIONS
+
+
+PEAK_PICKER_REGISTRY: Dict[str, Any] = {
+    "hires": oms.PeakPickerHiRes,
+    "cwt": getattr(oms, "PeakPickerCWT", oms.PeakPickerHiRes),
+}
 
 
 class _Py_MSExperimentSlicing:
@@ -178,14 +186,28 @@ class Py_MSExperiment:
     def to_mzml(self, filepath: str):
         """
         Save MSExperiment to an mzML file.
-        
+
         Args:
             filepath: Output path for mzML file
-            
+
         Example:
             >>> exp.to_file('output.mzML')
         """
         oms.MzMLFile().store(filepath, self._experiment)
+
+    def load(self, filepath: Union[str, Path]) -> 'Py_MSExperiment':
+        """Load data from an MS file using its extension for detection."""
+
+        ensure_allowed_suffix(filepath, MS_EXPERIMENT_EXTENSIONS, "MSExperiment")
+        oms.FileHandler().loadExperiment(str(filepath), self._experiment)
+        return self
+
+    def store(self, filepath: Union[str, Path]) -> 'Py_MSExperiment':
+        """Store the experiment to disk based on the output extension."""
+
+        ensure_allowed_suffix(filepath, MS_EXPERIMENT_EXTENSIONS, "MSExperiment")
+        oms.FileHandler().storeExperiment(str(filepath), self._experiment)
+        return self
     
     # ==================== Pythonic Properties ====================
     
@@ -580,33 +602,125 @@ class Py_MSExperiment:
             filtered_spec = spec.top_n_peaks(n)
             new_exp.addSpectrum(filtered_spec.native)
         return Py_MSExperiment(new_exp)
-    
-    
-    def __getitem__(self, key) -> Union['Py_MSExperiment', Py_MSSpectrum]:
+
+    def pick_peaks(
+        self,
+        method: str = "HiRes",
+        params: Optional[Dict[str, Any]] = None,
+        ms_levels: Optional[Union[int, Sequence[int]]] = 1,
+        inplace: bool = False,
+    ) -> 'Py_MSExperiment':
         """
-        Slicing by spectrum index.
-        
+        Convenience interface for pyOpenMS peak pickers.
+
         Args:
-            key: Integer index or slice object
-            
+            method: Name of the peak picking algorithm ("HiRes", "CWT", ...).
+            params: Optional dictionary of parameters passed to the picker.
+            ms_levels: Single MS level, list of MS levels, or None for all levels.
+            inplace: If True, modify the current experiment and return self.
+
         Returns:
-            Single Spectrum (if integer) or new Py_MSExperiment (if slice)
-            
+            A Py_MSExperiment with picked spectra (self when inplace=True).
+
         Example:
-            >>> # Get single spectrum
-            >>> spec = exp[10]
-            >>> 
-            >>> # Get spectra 5 to 15
-            >>> subset = exp[5:16]
+            >>> picked = exp.pick_peaks(method="HiRes", ms_levels=1)
         """
-        if isinstance(key, slice):
-            # Handle slice - return new Py_MSExperiment
-            start, stop, step = key.indices(len(self))
-            return self.filter_by_spectrum_index(start, stop, step)
-        elif isinstance(key, int):
-            return self.get_by_spectrum_index(key)
+
+        picker_cls = PEAK_PICKER_REGISTRY.get(method.lower())
+        if picker_cls is None:
+            raise ValueError(
+                f"Unknown peak picking method '{method}'. "
+                f"Available options: {sorted(PEAK_PICKER_REGISTRY.keys())}"
+            )
+
+        picker = picker_cls()
+
+        if params:
+            picker_params = picker.getParameters()
+            for key, value in params.items():
+                picker_params.setValue(key, value)
+            picker.setParameters(picker_params)
+
+        if ms_levels is None:
+            target_levels = None
+        elif isinstance(ms_levels, int):
+            target_levels = {int(ms_levels)}
         else:
-            raise TypeError(f"Invalid index type: {type(key)}")
+            target_levels = {int(level) for level in ms_levels}
+
+        working_exp = oms.MSExperiment(self._experiment)
+        working_exp.clear(True)
+
+        source_exp = self._experiment
+
+        for idx in range(source_exp.getNrSpectra()):
+            source_spec = source_exp.getSpectrum(idx)
+            target_spec = oms.MSSpectrum(source_spec)
+
+            if target_levels is None or source_spec.getMSLevel() in target_levels:
+                picker.pick(source_spec, target_spec)
+
+            working_exp.addSpectrum(target_spec)
+
+        if inplace:
+            self._experiment = working_exp
+            return self
+
+        return Py_MSExperiment(working_exp)
+
+
+    def __getitem__(self, key) -> Union['Py_MSExperiment', Py_MSSpectrum]:
+        """Return spectra using Python's indexing semantics."""
+
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self))
+            new_experiment = oms.MSExperiment()
+
+            for idx in range(start, stop, step):
+                new_experiment.addSpectrum(oms.MSSpectrum(self._experiment.getSpectrum(idx)))
+
+            return Py_MSExperiment(new_experiment)
+
+        if isinstance(key, int):
+            return self.get_by_spectrum_index(key)
+
+        raise TypeError(f"Invalid index type: {type(key)}")
+
+    def append(self, spectrum: Union[Py_MSSpectrum, oms.MSSpectrum]) -> 'Py_MSExperiment':
+        """Append a spectrum to the experiment."""
+
+        native = self._coerce_spectrum(spectrum)
+        self._experiment.addSpectrum(native)
+        return self
+
+    def extend(self, spectra: Iterable[Union[Py_MSSpectrum, oms.MSSpectrum]]) -> 'Py_MSExperiment':
+        """Append multiple spectra to the experiment."""
+
+        for spectrum in spectra:
+            self.append(spectrum)
+        return self
+
+    def remove(self, index: int) -> 'Py_MSExperiment':
+        """Remove the spectrum at *index* and return ``self`` for chaining."""
+
+        normalized = self._normalize_index(index)
+        self._delete_indices([normalized])
+        return self
+
+    def __delitem__(self, key) -> None:
+        """Delete spectra using integer indices or slices."""
+
+        if isinstance(key, int):
+            self.remove(key)
+            return
+
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self))
+            indices = list(range(start, stop, step))
+            self._delete_indices(indices)
+            return
+
+        raise TypeError(f"Invalid deletion index type: {type(key)}")
     
     # ==================== Analysis Methods ====================
     def summary(self) -> dict:
@@ -670,3 +784,43 @@ class Py_MSExperiment:
         not wrapped by this class.
         """
         return self._experiment
+
+    # ==================== Private Helpers ====================
+
+    def _coerce_spectrum(self, spectrum: Union[Py_MSSpectrum, oms.MSSpectrum]) -> oms.MSSpectrum:
+        if isinstance(spectrum, Py_MSSpectrum):
+            return oms.MSSpectrum(spectrum.native)
+        if isinstance(spectrum, oms.MSSpectrum):
+            return oms.MSSpectrum(spectrum)
+        raise TypeError(
+            "append expects pyopenms.MSSpectrum or Py_MSSpectrum instances"
+        )
+
+    def _normalize_index(self, index: int) -> int:
+        length = len(self)
+        if length == 0:
+            raise IndexError("MSExperiment is empty")
+        if index < 0:
+            index += length
+        if index < 0 or index >= length:
+            raise IndexError(f"Spectrum index {index} out of range [0, {length})")
+        return index
+
+    def _delete_indices(self, indices: Iterable[int]) -> None:
+        drop = sorted(set(indices))
+        if not drop:
+            return
+
+        source_exp = self._experiment
+        length = source_exp.getNrSpectra()
+        drop_set = set(drop)
+
+        new_exp = oms.MSExperiment(source_exp)
+        new_exp.clear(False)
+
+        for idx in range(length):
+            if idx in drop_set:
+                continue
+            new_exp.addSpectrum(oms.MSSpectrum(source_exp.getSpectrum(idx)))
+
+        self._experiment = new_exp

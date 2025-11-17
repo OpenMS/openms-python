@@ -104,6 +104,30 @@ peaks_df = spec.to_dataframe()
 print(peaks_df.head())
 ```
 
+### Peak Picking in One Line
+
+#### Before (pyOpenMS)
+```python
+import pyopenms as oms
+
+picker = oms.PeakPickerHiRes()
+params = picker.getDefaults()
+params.setValue("signal_to_noise", 3.0)
+picker.setParameters(params)
+
+centroided = oms.MSExperiment(exp)
+picker.pickExperiment(exp, centroided, True)
+```
+
+#### After (openms-python)
+```python
+from openms_python import Py_MSExperiment
+
+centroided = exp.pick_peaks(method="HiRes", params={"signal_to_noise": 3.0})
+# or modify in-place
+exp.pick_peaks(inplace=True)
+```
+
 ### Smart Iteration
 
 ```python
@@ -177,6 +201,38 @@ from openms_python import write_mzml
 write_mzml(exp, 'output.mzML')
 ```
 
+### Wrapper-Aware Load/Store
+
+All high-level containers expose `load`/`store` helpers that infer the correct
+pyOpenMS reader from the file extension (including `.gz`).
+
+#### Before (pyOpenMS)
+```python
+import pyopenms as oms
+
+exp = oms.MSExperiment()
+oms.MzMLFile().load("input.mzML", exp)
+oms.MzMLFile().store("output.mzML", exp)
+
+fmap = oms.FeatureMap()
+oms.FeatureXMLFile().load("input.featureXML", fmap)
+oms.FeatureXMLFile().store("output.featureXML", fmap)
+```
+
+#### After (openms-python)
+```python
+from openms_python import Py_MSExperiment, Py_FeatureMap, Py_ConsensusMap
+
+exp = Py_MSExperiment().load("input.mzML")
+exp.store("output.mzML")
+
+feature_map = Py_FeatureMap().load("input.featureXML")
+feature_map.store("output.featureXML")
+
+cons_map = Py_ConsensusMap().load("input.consensusXML")
+cons_map.store("output.consensusXML")
+```
+
 ### Context Managers
 
 ```python
@@ -192,6 +248,65 @@ with MzMLReader('data.mzML') as exp:
 with MzMLWriter('output.mzML') as writer:
     writer.write(exp)
 ```
+
+### Streaming Large mzML Files
+
+#### Before (pyOpenMS)
+```python
+import pyopenms as oms
+
+class SpectrumCounter(oms.MSExperimentConsumer):
+    def __init__(self):
+        super().__init__()
+        self.ms2 = 0
+
+    def consumeSpectrum(self, spec):
+        if spec.getMSLevel() == 2:
+            self.ms2 += 1
+
+consumer = SpectrumCounter()
+oms.MzMLFile().transform("big.mzML", consumer)
+print(f"Processed {consumer.ms2} MS2 spectra")
+```
+
+#### After (openms-python)
+```python
+from openms_python import stream_mzml
+
+with stream_mzml("big.mzML") as spectra:
+    ms2 = sum(1 for spec in spectra if spec.ms_level == 2)
+print(f"Processed {ms2} MS2 spectra")
+```
+
+### Pythonic Mutation Helpers
+
+All wrappers behave like mutable Python sequences.
+
+#### MSExperiment
+```python
+# Append and extend
+exp.append(new_spec).extend(other_exp)
+
+# Remove by index or slice
+exp.remove(-1)
+del exp[::2]
+```
+
+#### FeatureMap / ConsensusMap
+```python
+feature_map.append(feature)
+feature_map.extend(iter_of_features)
+feature_map.remove(0)     # delete by index
+
+cons_map.append(cons_feature)
+del cons_map[-3:]
+```
+
+Behind the scenes the wrappers copy the retained entries back into the
+underlying pyOpenMS container, preserving meta data while exposing the
+expected Python semantics. By contrast, pyOpenMS requires manually creating a
+new container, copying every element except the ones you wish to remove, and
+reassigning the result.
 
 ## Advanced Examples
 

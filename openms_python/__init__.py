@@ -17,11 +17,16 @@ __author__ = "MiniMax Agent"
 
 from .py_msexperiment import Py_MSExperiment
 from .py_msspectrum import Py_MSSpectrum
-from .io import read_mzml, write_mzml
+from .py_featuremap import Py_FeatureMap
+from .py_consensusmap import Py_ConsensusMap
+from .io import read_mzml, write_mzml, stream_mzml
 
 __all__ = [
     "Py_MSExperiment",
     "Py_MSSpectrum",
+    "Py_FeatureMap",
+    "Py_ConsensusMap",
     "read_mzml",
     "write_mzml",
+    "stream_mzml",
 ]
