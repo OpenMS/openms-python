@@ -3,6 +3,7 @@ import pytest
 
 oms = pytest.importorskip("pyopenms")
 
+from openms_python.py_feature import Py_Feature
 from openms_python.py_featuremap import Py_FeatureMap
 
 
@@ -21,6 +22,7 @@ def test_py_featuremap_len_and_indexing():
     fmap = build_feature_map()
 
     assert len(fmap) == 4
+    assert isinstance(fmap[0], Py_Feature)
     assert fmap[0].getUniqueId() == 0
     assert fmap[-1].getUniqueId() == 3
 
