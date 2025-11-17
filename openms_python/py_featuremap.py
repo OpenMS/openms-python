@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterator, Optional, Union
+from typing import Iterable, Iterator, Optional, Union
 
 import pyopenms as oms
 from ._io_utils import ensure_allowed_suffix, FEATURE_MAP_EXTENSIONS
@@ -47,10 +47,18 @@ class Py_FeatureMap:
 
         raise TypeError(f"Invalid index type: {type(key)}")
 
-    def append(self, feature: oms.Feature) -> None:
+    def append(self, feature: oms.Feature) -> 'Py_FeatureMap':
         """Append a :class:`pyopenms.Feature` to the map."""
 
         self._feature_map.push_back(feature)
+        return self
+
+    def extend(self, features: Iterable[oms.Feature]) -> 'Py_FeatureMap':
+        """Append multiple features to the map."""
+
+        for feature in features:
+            self.append(feature)
+        return self
 
     def load(self, filepath: Union[str, Path]) -> 'Py_FeatureMap':
         """Load a feature map from disk by inspecting the extension."""

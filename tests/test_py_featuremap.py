@@ -61,3 +61,21 @@ def test_py_featuremap_rejects_unknown_extension(tmp_path):
 
     with pytest.raises(ValueError):
         Py_FeatureMap().load(bad_path)
+
+
+def test_py_featuremap_append_and_extend():
+    fmap = Py_FeatureMap()
+    feature = oms.Feature()
+    feature.setUniqueId(10)
+    fmap.append(feature)
+
+    assert len(fmap) == 1
+    assert fmap[0].getUniqueId() == 10
+
+    second = oms.Feature()
+    second.setUniqueId(11)
+    third = oms.Feature()
+    third.setUniqueId(12)
+
+    fmap.extend([second, third])
+    assert [feat.getUniqueId() for feat in fmap] == [10, 11, 12]
