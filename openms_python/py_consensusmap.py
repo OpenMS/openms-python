@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterator, Optional, Union
+from typing import Iterable, Iterator, Optional, Union
 
 import pyopenms as oms
 
@@ -53,6 +53,19 @@ class Py_ConsensusMap:
 
         ensure_allowed_suffix(filepath, CONSENSUS_MAP_EXTENSIONS, "ConsensusMap")
         oms.ConsensusXMLFile().load(str(filepath), self._consensus_map)
+        return self
+
+    def append(self, feature: oms.ConsensusFeature) -> 'Py_ConsensusMap':
+        """Append a :class:`pyopenms.ConsensusFeature` to the map."""
+
+        self._consensus_map.push_back(feature)
+        return self
+
+    def extend(self, features: Iterable[oms.ConsensusFeature]) -> 'Py_ConsensusMap':
+        """Append multiple consensus features to the map."""
+
+        for feature in features:
+            self.append(feature)
         return self
 
     def store(self, filepath: Union[str, Path]) -> 'Py_ConsensusMap':

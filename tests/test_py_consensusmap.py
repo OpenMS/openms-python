@@ -55,3 +55,22 @@ def test_py_consensusmap_rejects_unknown_extension(tmp_path):
 
     with pytest.raises(ValueError):
         Py_ConsensusMap().load(bad_path)
+
+
+def test_py_consensusmap_append_and_extend():
+    cmap = Py_ConsensusMap()
+    feature = oms.ConsensusFeature()
+    feature.setUniqueId(42)
+    cmap.append(feature)
+
+    assert len(cmap) == 1
+    assert cmap[0].getUniqueId() == 42
+
+    other_features = []
+    for uid in (43, 44):
+        entry = oms.ConsensusFeature()
+        entry.setUniqueId(uid)
+        other_features.append(entry)
+
+    cmap.extend(other_features)
+    assert [feat.getUniqueId() for feat in cmap] == [42, 43, 44]
