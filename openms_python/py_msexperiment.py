@@ -2,11 +2,17 @@
 Pythonic wrapper for pyOpenMS MSExperiment class.
 """
 
-from typing import Iterator, Optional, List, Union
+from typing import Iterator, Optional, List, Union, Sequence, Dict, Any
 import pandas as pd
 import numpy as np
 import pyopenms as oms
 from .py_msspectrum import Py_MSSpectrum
+
+
+PEAK_PICKER_REGISTRY: Dict[str, Any] = {
+    "hires": oms.PeakPickerHiRes,
+    "cwt": getattr(oms, "PeakPickerCWT", oms.PeakPickerHiRes),
+}
 
 
 class _Py_MSExperimentSlicing:
@@ -580,8 +586,73 @@ class Py_MSExperiment:
             filtered_spec = spec.top_n_peaks(n)
             new_exp.addSpectrum(filtered_spec.native)
         return Py_MSExperiment(new_exp)
-    
-    
+
+    def pick_peaks(
+        self,
+        method: str = "HiRes",
+        params: Optional[Dict[str, Any]] = None,
+        ms_levels: Optional[Union[int, Sequence[int]]] = 1,
+        inplace: bool = False,
+    ) -> 'Py_MSExperiment':
+        """
+        Convenience interface for pyOpenMS peak pickers.
+
+        Args:
+            method: Name of the peak picking algorithm ("HiRes", "CWT", ...).
+            params: Optional dictionary of parameters passed to the picker.
+            ms_levels: Single MS level, list of MS levels, or None for all levels.
+            inplace: If True, modify the current experiment and return self.
+
+        Returns:
+            A Py_MSExperiment with picked spectra (self when inplace=True).
+
+        Example:
+            >>> picked = exp.pick_peaks(method="HiRes", ms_levels=1)
+        """
+
+        picker_cls = PEAK_PICKER_REGISTRY.get(method.lower())
+        if picker_cls is None:
+            raise ValueError(
+                f"Unknown peak picking method '{method}'. "
+                f"Available options: {sorted(PEAK_PICKER_REGISTRY.keys())}"
+            )
+
+        picker = picker_cls()
+
+        if params:
+            picker_params = picker.getParameters()
+            for key, value in params.items():
+                picker_params.setValue(key, value)
+            picker.setParameters(picker_params)
+
+        if ms_levels is None:
+            target_levels = None
+        elif isinstance(ms_levels, int):
+            target_levels = {int(ms_levels)}
+        else:
+            target_levels = {int(level) for level in ms_levels}
+
+        working_exp = oms.MSExperiment(self._experiment)
+        working_exp.clear(True)
+
+        source_exp = self._experiment
+
+        for idx in range(source_exp.getNrSpectra()):
+            source_spec = source_exp.getSpectrum(idx)
+            target_spec = oms.MSSpectrum(source_spec)
+
+            if target_levels is None or source_spec.getMSLevel() in target_levels:
+                picker.pick(source_spec, target_spec)
+
+            working_exp.addSpectrum(target_spec)
+
+        if inplace:
+            self._experiment = working_exp
+            return self
+
+        return Py_MSExperiment(working_exp)
+
+
     def __getitem__(self, key) -> Union['Py_MSExperiment', Py_MSSpectrum]:
         """
         Slicing by spectrum index.

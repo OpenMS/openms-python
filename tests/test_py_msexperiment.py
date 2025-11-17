@@ -6,6 +6,7 @@ oms = pytest.importorskip("pyopenms")
 
 from openms_python.io import read_mzml, write_mzml
 from openms_python.py_msexperiment import Py_MSExperiment
+import openms_python.py_msexperiment as py_ms_module
 from openms_python.py_msspectrum import Py_MSSpectrum
 
 
@@ -106,4 +107,61 @@ def test_mzml_roundtrip(tmp_path):
     assert [spec.ms_level for spec in loaded] == [spec.ms_level for spec in exp]
     assert [spec.native_id for spec in loaded] == [spec.native_id for spec in exp]
     assert loaded[0].retention_time == pytest.approx(exp[0].retention_time)
+
+
+def test_peak_picking_convenience(monkeypatch):
+    exp = build_experiment()
+    original_ms1 = exp[0].mz.tolist()
+    processed = []
+
+    class DummyPicker:
+        def __init__(self):
+            self._params = oms.Param()
+
+        def getParameters(self):
+            return self._params
+
+        def setParameters(self, params):
+            self._params = params
+
+        def pick(self, source, dest):
+            processed.append(source.getNativeID())
+            dest.set_peaks(([source.getRT()], [source.size()]))
+
+    monkeypatch.setitem(py_ms_module.PEAK_PICKER_REGISTRY, "hires", DummyPicker)
+
+    picked = exp.pick_peaks(params={"signal_to_noise": 5.0})
+
+    assert processed == ["scan=0", "scan=1"]
+    assert picked[0].mz.shape == (1,)
+    assert picked[0].mz[0] == pytest.approx(exp[0].retention_time)
+    assert picked[2].mz.tolist() == exp[2].mz.tolist()
+    assert exp[0].mz.tolist() == original_ms1
+
+
+def test_peak_picking_inplace_all_levels(monkeypatch):
+    exp = build_experiment()
+    processed = []
+
+    class DummyPicker:
+        def __init__(self):
+            self._params = oms.Param()
+
+        def getParameters(self):
+            return self._params
+
+        def setParameters(self, params):
+            self._params = params
+
+        def pick(self, source, dest):
+            processed.append(source.getNativeID())
+            dest.set_peaks(([42.0], [84.0]))
+
+    monkeypatch.setitem(py_ms_module.PEAK_PICKER_REGISTRY, "hires", DummyPicker)
+
+    result = exp.pick_peaks(ms_levels=None, inplace=True)
+
+    assert result is exp
+    assert len(processed) == len(exp)
+    assert all(np.allclose(spec.mz, 42.0) for spec in exp)
 
