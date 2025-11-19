@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import pyopenms as oms
 from .py_msspectrum import Py_MSSpectrum
+from .py_chromatogram import Py_MSChromatogram
 from .py_featuremap import Py_FeatureMap
 from ._io_utils import ensure_allowed_suffix, MS_EXPERIMENT_EXTENSIONS
 
@@ -266,6 +267,16 @@ class Py_MSExperiment:
         """
         return _Py_MSExperimentRTSlicing(self)
     
+    @property
+    def nr_chromatograms(self) -> int:
+        """Get number of chromatograms in the experiment."""
+        return self._experiment.getNrChromatograms()
+    
+    @property
+    def chromatogram_count(self) -> int:
+        """Alias for nr_chromatograms."""
+        return self.nr_chromatograms
+    
     # ==================== Magic Methods ====================
     
     def __len__(self) -> int:
@@ -281,8 +292,9 @@ class Py_MSExperiment:
         """Return string representation."""
         ms_levels_str = ', '.join(f"MS{level}" for level in sorted(self.ms_levels))
         rt_min, rt_max = self.rt_range
+        chrom_str = f", chromatograms={self.nr_chromatograms}" if self.nr_chromatograms > 0 else ""
         return (
-            f"MSExperiment(spectra={len(self)}, "
+            f"MSExperiment(spectra={len(self)}{chrom_str}, "
             f"levels=[{ms_levels_str}], "
             f"rt_range=[{rt_min:.2f}, {rt_max:.2f}]s)"
         )
@@ -343,6 +355,52 @@ class Py_MSExperiment:
         for spec in self:
             if min_rt <= spec.retention_time <= max_rt:
                 yield spec
+    
+    # ==================== Chromatogram Access ====================
+    
+    def get_chromatogram(self, index: int) -> Py_MSChromatogram:
+        """
+        Get a chromatogram by index.
+        
+        Args:
+            index: Chromatogram index (0-based)
+            
+        Returns:
+            Py_MSChromatogram wrapper
+            
+        Example:
+            >>> chrom = exp.get_chromatogram(0)
+            >>> print(f"MZ: {chrom.mz:.4f}, Points: {len(chrom)}")
+        """
+        native_chrom = self._experiment.getChromatogram(index)
+        return Py_MSChromatogram(native_chrom)
+    
+    def chromatograms(self) -> Iterator[Py_MSChromatogram]:
+        """
+        Iterate over all chromatograms.
+        
+        Example:
+            >>> for chrom in exp.chromatograms():
+            ...     print(f"MZ: {chrom.mz:.4f}, TIC: {chrom.total_ion_current:.2e}")
+        """
+        for i in range(self.nr_chromatograms):
+            yield self.get_chromatogram(i)
+    
+    def add_chromatogram(self, chromatogram: Union[Py_MSChromatogram, oms.MSChromatogram]):
+        """
+        Add a chromatogram to the experiment.
+        
+        Args:
+            chromatogram: Chromatogram to add (Py_MSChromatogram or native)
+            
+        Example:
+            >>> chrom = Py_MSChromatogram.from_dataframe(df, mz=445.12)
+            >>> exp.add_chromatogram(chrom)
+        """
+        if isinstance(chromatogram, Py_MSChromatogram):
+            self._experiment.addChromatogram(chromatogram.native)
+        else:
+            self._experiment.addChromatogram(chromatogram)
     
     # ==================== DataFrame Conversion ====================
     
