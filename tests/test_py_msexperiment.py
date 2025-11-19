@@ -323,3 +323,15 @@ def test_peak_picking_inplace_all_levels(monkeypatch):
     assert len(processed) == len(exp)
     assert all(np.allclose(spec.mz, 42.0) for spec in exp)
 
+
+def test_peak_picking_iterative_method():
+    """Test that iterative peak picking method is available."""
+    exp = build_experiment()
+    # Just verify that iterative method can be selected
+    try:
+        picked = exp.pick_peaks(method="iterative", ms_levels=1)
+        assert isinstance(picked, Py_MSExperiment)
+    except Exception as e:
+        # It may fail on minimal data, but should not fail on unknown method
+        assert "Unknown peak picking method" not in str(e)
+

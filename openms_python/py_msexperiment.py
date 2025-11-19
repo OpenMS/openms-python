@@ -15,6 +15,7 @@ from ._io_utils import ensure_allowed_suffix, MS_EXPERIMENT_EXTENSIONS
 PEAK_PICKER_REGISTRY: Dict[str, Any] = {
     "hires": oms.PeakPickerHiRes,
     "cwt": getattr(oms, "PeakPickerCWT", oms.PeakPickerHiRes),
+    "iterative": oms.PeakPickerIterative,
 }
 
 _FeatureMapLike = Union[Py_FeatureMap, oms.FeatureMap]
