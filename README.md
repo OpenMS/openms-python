@@ -230,6 +230,9 @@ df = pd.DataFrame({
 })
 design = Py_ExperimentalDesign.from_dataframe(df)
 
+# Store to file
+design.store("output_design.tsv")
+
 # Create from existing OpenMS objects
 from openms_python import Py_ConsensusMap
 consensus = Py_ConsensusMap.from_file("results.consensusXML")

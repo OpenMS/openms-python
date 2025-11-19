@@ -128,8 +128,8 @@ def test_py_experimentaldesign_invalid_extension():
         Path(temp_path).unlink()
 
 
-def test_py_experimentaldesign_store_not_implemented():
-    """Test that store method raises NotImplementedError."""
+def test_py_experimentaldesign_store_roundtrip():
+    """Test that store method works and roundtrips correctly."""
     example_path = get_example("experimental_design.tsv")
     design = Py_ExperimentalDesign.from_file(example_path)
 
@@ -137,10 +137,44 @@ def test_py_experimentaldesign_store_not_implemented():
         temp_path = f.name
 
     try:
-        with pytest.raises(NotImplementedError, match="not yet available"):
+        # Store the design
+        result = design.store(temp_path)
+        assert result is design  # Check method chaining
+
+        # Verify file was created
+        assert Path(temp_path).exists()
+
+        # Load it back and verify
+        design2 = Py_ExperimentalDesign.from_file(temp_path)
+        assert design2.n_samples == design.n_samples
+        assert design2.n_ms_files == design.n_ms_files
+        assert design2.n_fractions == design.n_fractions
+        assert design2.n_fraction_groups == design.n_fraction_groups
+        assert design2.n_labels == design.n_labels
+
+        # Verify DataFrame content matches
+        df1 = design.to_dataframe()
+        df2 = design2.to_dataframe()
+        assert df1.equals(df2)
+    finally:
+        if Path(temp_path).exists():
+            Path(temp_path).unlink()
+
+
+def test_py_experimentaldesign_store_invalid_extension():
+    """Test that store rejects invalid file extensions."""
+    example_path = get_example("experimental_design.tsv")
+    design = Py_ExperimentalDesign.from_file(example_path)
+
+    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+        temp_path = f.name
+
+    try:
+        with pytest.raises(ValueError, match="ExperimentalDesign"):
             design.store(temp_path)
     finally:
-        Path(temp_path).unlink()
+        if Path(temp_path).exists():
+            Path(temp_path).unlink()
 
 
 def test_py_experimentaldesign_delegation():

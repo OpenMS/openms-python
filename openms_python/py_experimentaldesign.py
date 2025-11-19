@@ -80,10 +80,10 @@ class Py_ExperimentalDesign:
         return self
 
     def store(self, filepath: Union[str, Path]) -> "Py_ExperimentalDesign":
-        """Store the experimental design to disk.
+        """Store the experimental design to disk as a TSV file.
 
-        Note: Storage functionality is not available in the current pyOpenMS API.
-        This method is provided for API consistency but will raise NotImplementedError.
+        The design is converted to a DataFrame and written in the format
+        expected by OpenMS ExperimentalDesignFile.
 
         Parameters
         ----------
@@ -95,16 +95,14 @@ class Py_ExperimentalDesign:
         Py_ExperimentalDesign
             Self for method chaining.
 
-        Raises
-        ------
-        NotImplementedError
-            Storage is not yet implemented in pyOpenMS.
+        Example:
+            >>> design = Py_ExperimentalDesign.from_file("input.tsv")
+            >>> design.store("output.tsv")
         """
         ensure_allowed_suffix(filepath, EXPERIMENTAL_DESIGN_EXTENSIONS, "ExperimentalDesign")
-        raise NotImplementedError(
-            "ExperimentalDesign storage is not yet available in pyOpenMS. "
-            "Please use the native pyOpenMS API if this functionality is needed."
-        )
+        df = self.to_dataframe()
+        df.to_csv(str(filepath), sep="\t", index=False)
+        return self
 
     @property
     def native(self) -> oms.ExperimentalDesign:
