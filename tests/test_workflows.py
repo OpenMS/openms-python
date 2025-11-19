@@ -156,3 +156,50 @@ def test_link_features_and_export_quant_table():
     assert df.shape[0] >= 1
     # Expect one column per input map
     assert {col for col in df.columns if col.startswith("map_")}
+
+
+def test_link_features_with_kd_grouping():
+    """Test that KD-tree grouping method works in link_features."""
+    fmap_a = oms.FeatureMap()
+    feat_a = oms.Feature()
+    feat_a.setRT(10.0)
+    feat_a.setMZ(500.0)
+    feat_a.setIntensity(100.0)
+    fmap_a.push_back(feat_a)
+
+    fmap_b = oms.FeatureMap()
+    feat_b = oms.Feature()
+    feat_b.setRT(10.0)
+    feat_b.setMZ(500.0)
+    feat_b.setIntensity(110.0)
+    fmap_b.push_back(feat_b)
+
+    consensus = link_features(
+        [Py_FeatureMap(fmap_a), Py_FeatureMap(fmap_b)],
+        grouping_method="kd"
+    )
+    assert len(consensus) == 1
+
+
+def test_link_features_with_unlabeled_grouping():
+    """Test that unlabeled grouping method works in link_features."""
+    fmap_a = oms.FeatureMap()
+    feat_a = oms.Feature()
+    feat_a.setRT(10.0)
+    feat_a.setMZ(500.0)
+    feat_a.setIntensity(100.0)
+    fmap_a.push_back(feat_a)
+
+    fmap_b = oms.FeatureMap()
+    feat_b = oms.Feature()
+    feat_b.setRT(10.0)
+    feat_b.setMZ(500.0)
+    feat_b.setIntensity(110.0)
+    fmap_b.push_back(feat_b)
+
+    consensus = link_features(
+        [Py_FeatureMap(fmap_a), Py_FeatureMap(fmap_b)],
+        grouping_method="unlabeled"
+    )
+    assert len(consensus) == 1
+

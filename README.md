@@ -123,7 +123,7 @@ helper performs three steps:
 
 1. Copies the incoming feature maps to avoid mutating your data
 2. Aligns the feature maps with your choice of OpenMS alignment algorithm
-3. Links the aligned runs using `FeatureGroupingAlgorithmQT`
+3. Links the aligned runs using your choice of feature grouping algorithm
 
 ```python
 from openms_python import Py_FeatureMap, Py_ConsensusMap
@@ -137,6 +137,8 @@ consensus = Py_ConsensusMap.align_and_link(
     feature_maps,
     alignment_method="pose_clustering",  # or "identification" / "identity"
     alignment_params={"max_rt_shift": 15.0},
+    grouping_method="qt",  # or "kd" / "labeled" / "unlabeled" (default: "qt")
+    grouping_params={"distance_RT:max_difference": 100.0},
 )
 
 print(f"Consensus contains {len(consensus)} features")
@@ -468,7 +470,11 @@ annotated = map_identifications_to_features(feature_map, filtered)
 
 # 3) Align multiple maps and link them into a consensus representation
 aligned = align_feature_maps([annotated, second_run])
-consensus = link_features(aligned)
+consensus = link_features(
+    aligned,
+    grouping_method="qt",  # or "kd" / "labeled" / "unlabeled"
+    params={"distance_RT:max_difference": 100.0}
+)
 
 # 4) Export a tidy quantitation table (per-sample intensities)
 quant_df = export_quant_table(consensus)
@@ -497,7 +503,10 @@ picker.pickExperiment(exp, centroided, True)
 ```python
 from openms_python import Py_MSExperiment
 
-centroided = exp.pick_peaks(method="HiRes", params={"signal_to_noise": 3.0})
+# Choose from multiple peak picking algorithms
+centroided = exp.pick_peaks(method="hires", params={"signal_to_noise": 3.0})
+# Available methods: "hires" (default), "cwt", "iterative"
+
 # or modify in-place
 exp.pick_peaks(inplace=True)
 ```
