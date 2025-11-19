@@ -299,6 +299,75 @@ peaks_df = spec.to_dataframe()
 print(peaks_df.head())
 ```
 
+### Working with Chromatograms
+
+Chromatograms (e.g., extracted ion chromatograms, total ion chromatograms) are now fully supported with a Pythonic interface similar to spectra.
+
+```python
+from openms_python import Py_MSExperiment, Py_MSChromatogram
+import pandas as pd
+
+# Load experiment with chromatograms
+exp = Py_MSExperiment.from_file('data.mzML')
+
+# Check chromatogram count
+print(f"Chromatograms: {exp.chromatogram_count}")
+
+# Access individual chromatograms
+if exp.chromatogram_count > 0:
+    chrom = exp.get_chromatogram(0)
+    print(f"MZ: {chrom.mz:.4f}")
+    print(f"Name: {chrom.name}")
+    print(f"Data points: {len(chrom)}")
+    print(f"RT range: {chrom.rt_range}")
+    print(f"TIC: {chrom.total_ion_current:.2e}")
+
+# Iterate over all chromatograms
+for chrom in exp.chromatograms():
+    print(f"Chromatogram: MZ={chrom.mz:.4f}, Points={len(chrom)}")
+
+# Create chromatogram from DataFrame
+df = pd.DataFrame({
+    'rt': [10.0, 20.0, 30.0, 40.0],
+    'intensity': [1000.0, 5000.0, 3000.0, 500.0]
+})
+chrom = Py_MSChromatogram.from_dataframe(
+    df,
+    mz=445.12,
+    name="XIC m/z 445.12",
+    native_id="chromatogram=1"
+)
+
+# Add to experiment
+exp.add_chromatogram(chrom)
+
+# Chromatogram properties
+print(f"MZ: {chrom.mz:.4f}")
+print(f"Max intensity: {chrom.max_intensity}")
+print(f"RT at max: {chrom.rt[chrom.intensity.argmax()]:.2f}")
+
+# Get data as arrays
+rt, intensity = chrom.data
+# Or individually
+rt_values = chrom.rt
+intensity_values = chrom.intensity
+
+# Convert to DataFrame
+chrom_df = chrom.to_dataframe()
+
+# Filter chromatogram by RT
+filtered = chrom.filter_by_rt(min_rt=15.0, max_rt=35.0)
+
+# Normalize intensities
+normalized = chrom.normalize_intensity(max_value=100.0)
+normalized_tic = chrom.normalize_to_tic()
+
+# Metadata access
+chrom["sample_id"] = "Sample_A"
+chrom["replicate"] = 1
+print(chrom.get("sample_id"))
+```
+
 ## Workflow helpers
 
 `openms_python` now exposes opinionated utilities that combine the primitive
@@ -665,6 +734,8 @@ plt.show()
 
 **Properties:**
 - `n_spectra`: Number of spectra
+- `nr_chromatograms`: Number of chromatograms
+- `chromatogram_count`: Alias for nr_chromatograms
 - `rt_range`: Tuple of (min_rt, max_rt)
 - `ms_levels`: Set of MS levels present
 
@@ -677,11 +748,41 @@ plt.show()
 - `ms2_spectra()`: Iterator over MS2 spectra
 - `spectra_by_level(level)`: Iterator over specific MS level
 - `spectra_in_rt_range(min_rt, max_rt)`: Iterator over RT range
+- `get_chromatogram(index)`: Get chromatogram by index
+- `chromatograms()`: Iterator over all chromatograms
+- `add_chromatogram(chromatogram)`: Add a chromatogram to the experiment
 - `filter_by_ms_level(level)`: Filter by MS level
 - `filter_by_rt(min_rt, max_rt)`: Filter by RT range
 - `filter_top_n_peaks(n)`: Keep top N peaks per spectrum
 - `summary()`: Get summary statistics
 - `print_summary()`: Print formatted summary
+
+### Py_MSChromatogram
+
+**Properties:**
+- `mz`: M/z value for the chromatogram
+- `name`: Chromatogram name
+- `native_id`: Native chromatogram ID
+- `chromatogram_type`: Type of chromatogram
+- `rt_range`: Tuple of (min_rt, max_rt)
+- `min_rt`: Minimum retention time
+- `max_rt`: Maximum retention time
+- `min_intensity`: Minimum intensity
+- `max_intensity`: Maximum intensity
+- `total_ion_current`: Sum of all intensities
+- `data`: Tuple of (rt_array, intensity_array)
+- `rt`: RT values as NumPy array
+- `intensity`: Intensity values as NumPy array
+
+**Methods:**
+- `from_numpy(rt, intensity, **metadata)`: Create from NumPy arrays (class method)
+- `from_dataframe(df, **metadata)`: Create from DataFrame (class method)
+- `to_numpy()`: Convert to NumPy arrays
+- `to_dataframe()`: Convert to DataFrame
+- `filter_by_rt(min_rt, max_rt)`: Filter data points by RT range
+- `filter_by_intensity(min_intensity)`: Filter by minimum intensity
+- `normalize_intensity(max_value)`: Normalize intensities to max value
+- `normalize_to_tic()`: Normalize so intensities sum to 1.0
 
 ### Py_MSSpectrum
 
@@ -744,10 +845,13 @@ pip install -e ".[dev]"
 | Feature | pyOpenMS | openms-python |
 |---------|----------|---------------|
 | Get spectrum count | `exp.getNrSpectra()` | `len(exp)` |
+| Get chromatogram count | `exp.getNrChromatograms()` | `exp.chromatogram_count` |
 | Get retention time | `spec.getRT()` | `spec.retention_time` |
+| Get chromatogram m/z | `chrom.getMZ()` | `chrom.mz` |
 | Check MS1 | `spec.getMSLevel() == 1` | `spec.is_ms1` |
 | Load file | `MzMLFile().load(path, exp)` | `exp = MSExperiment.from_file(path)` |
 | Iterate MS1 | Manual loop + level check | `for spec in exp.ms1_spectra():` |
+| Iterate chromatograms | Manual loop + range check | `for chrom in exp.chromatograms():` |
 | Peak data | `peaks = spec.get_peaks(); mz = peaks[0]` | `mz, intensity = spec.peaks` |
 | DataFrame | Not available | `df = exp.to_dataframe()` |
 
