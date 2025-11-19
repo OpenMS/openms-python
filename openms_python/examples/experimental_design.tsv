@@ -1,0 +1,7 @@
+Fraction_Group	Fraction	Spectra_Filepath	Label	Sample
+1	1	sample1_fraction1.mzML	1	1
+1	2	sample1_fraction2.mzML	1	1
+1	3	sample1_fraction3.mzML	1	1
+2	1	sample2_fraction1.mzML	1	2
+2	2	sample2_fraction2.mzML	1	2
+2	3	sample2_fraction3.mzML	1	2

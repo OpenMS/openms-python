@@ -189,6 +189,39 @@ search engine can be when built with the high-level helpers in
 `openms_python`. Reuse the test as inspiration for bespoke pipelines or as a
 regression harness when experimenting with search-related utilities.
 
+## Experimental design support
+
+Managing multi-sample, multi-fraction experiments? The `Py_ExperimentalDesign`
+wrapper makes it straightforward to work with OpenMS experimental design files
+that describe sample layouts, fractionation schemes, and labeling strategies.
+`tests/test_py_experimentaldesign.py` provides comprehensive examples of loading
+and querying experimental designs, including support for fractionated workflows,
+label-free and labeled quantitation setups, and integration with feature maps,
+consensus maps, and identification results. The wrapper exposes Pythonic
+properties for quick access to sample counts, fraction information, and design
+summaries—perfect for building sample-aware quantitation pipelines or validating
+experimental metadata before analysis.
+
+```python
+from openms_python import Py_ExperimentalDesign
+
+# Load an experimental design from a TSV file
+design = Py_ExperimentalDesign.from_file("design.tsv")
+
+# Quick access to design properties
+print(f"Samples: {design.n_samples}")
+print(f"MS files: {design.n_ms_files}")
+print(f"Fractionated: {design.is_fractionated}")
+
+# Get a summary
+design.print_summary()
+
+# Create from existing OpenMS objects
+from openms_python import Py_ConsensusMap
+consensus = Py_ConsensusMap.from_file("results.consensusXML")
+design = Py_ExperimentalDesign.from_consensus_map(consensus)
+```
+
 ### Iterate over containers and metadata
 
 All sequence-like wrappers (feature maps, consensus maps, identification containers,

@@ -50,7 +50,7 @@ where = ["."]
 include = ["openms_python*"]
 
 [tool.setuptools.package-data]
-"openms_python" = ["examples/*.mzML"]
+"openms_python" = ["examples/*.mzML", "examples/*.tsv"]
 
 [tool.black]
 line-length = 100
