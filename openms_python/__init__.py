@@ -23,6 +23,7 @@ __author__ = "MiniMax Agent"
 
 from .py_msexperiment import Py_MSExperiment
 from .py_msspectrum import Py_MSSpectrum
+from .py_mobilogram import Py_Mobilogram
 from .py_feature import Py_Feature
 from .py_featuremap import Py_FeatureMap
 from .py_consensusmap import Py_ConsensusMap
@@ -99,6 +100,7 @@ def get_example(name: str, *, load: bool = False, target_dir: Union[str, Path, N
 __all__ = [
     "Py_MSExperiment",
     "Py_MSSpectrum",
+    "Py_Mobilogram",
     "Py_Feature",
     "Py_FeatureMap",
     "Py_ConsensusMap",

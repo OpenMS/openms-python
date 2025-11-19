@@ -299,6 +299,79 @@ peaks_df = spec.to_dataframe()
 print(peaks_df.head())
 ```
 
+### Ion Mobility Support
+
+`openms-python` provides comprehensive support for ion mobility data through float data arrays and mobilograms.
+
+#### Float Data Arrays
+
+Spectra can have additional data arrays (e.g., ion mobility values) associated with each peak:
+
+```python
+from openms_python import Py_MSSpectrum
+import pandas as pd
+import numpy as np
+
+# Create a spectrum with ion mobility data
+df = pd.DataFrame({
+    'mz': [100.0, 200.0, 300.0],
+    'intensity': [50.0, 100.0, 75.0],
+    'ion_mobility': [1.5, 2.3, 3.1]
+})
+
+spec = Py_MSSpectrum.from_dataframe(df, retention_time=60.5, ms_level=1)
+
+# Access ion mobility values
+print(spec.ion_mobility)  # array([1.5, 2.3, 3.1])
+
+# Set ion mobility values
+spec.ion_mobility = np.array([1.6, 2.4, 3.2])
+
+# Convert to DataFrame with float arrays
+df = spec.to_dataframe(include_float_arrays=True)
+print(df)
+#      mz  intensity  ion_mobility
+# 0  100.0       50.0           1.6
+# 1  200.0      100.0           2.4
+# 2  300.0       75.0           3.2
+```
+
+#### Mobilograms
+
+Mobilograms represent the ion mobility dimension, showing intensity vs. drift time for a specific m/z.
+
+**Note:** OpenMS C++ has a native `Mobilogram` class that may not yet be wrapped in pyopenms. This wrapper uses `MSChromatogram` as the underlying representation for mobilogram data.
+
+```python
+from openms_python import Py_Mobilogram
+import numpy as np
+
+# Create a mobilogram from arrays
+drift_times = np.array([1.0, 1.5, 2.0, 2.5, 3.0])
+intensities = np.array([100.0, 150.0, 200.0, 180.0, 120.0])
+
+mob = Py_Mobilogram.from_arrays(drift_times, intensities, mz=500.0)
+
+print(f"m/z: {mob.mz}")
+print(f"Points: {len(mob)}")
+print(f"Base peak drift time: {mob.base_peak_drift_time}")
+
+# Convert to DataFrame
+df = mob.to_dataframe()
+print(df.head())
+#   drift_time  intensity     mz
+# 0         1.0      100.0  500.0
+# 1         1.5      150.0  500.0
+# 2         2.0      200.0  500.0
+
+# Create from DataFrame
+df = pd.DataFrame({
+    'drift_time': [1.0, 2.0, 3.0],
+    'intensity': [50.0, 100.0, 75.0]
+})
+mob = Py_Mobilogram.from_dataframe(df, mz=600.0)
+```
+
 ## Workflow helpers
 
 `openms_python` now exposes opinionated utilities that combine the primitive
@@ -696,16 +769,34 @@ plt.show()
 - `base_peak_mz`: m/z of most intense peak
 - `base_peak_intensity`: Intensity of base peak
 - `peaks`: Tuple of (mz_array, intensity_array)
+- `float_data_arrays`: List of FloatDataArray objects
+- `ion_mobility`: Ion mobility values as NumPy array
+- `drift_time`: Spectrum-level drift time value
 
 **Methods:**
 - `from_dataframe(df, **metadata)`: Create from DataFrame (class method)
-- `to_dataframe()`: Convert to DataFrame
+- `to_dataframe(include_float_arrays=True)`: Convert to DataFrame
 - `filter_by_mz(min_mz, max_mz)`: Filter peaks by m/z
 - `filter_by_intensity(min_intensity)`: Filter peaks by intensity
 - `top_n_peaks(n)`: Keep top N peaks
 - `normalize_intensity(max_value)`: Normalize intensities
 
-- `normalize_intensity(max_value)`: Normalize intensities
+### Py_Mobilogram
+
+**Properties:**
+- `name`: Name of the mobilogram
+- `mz`: m/z value this mobilogram represents
+- `drift_time`: Drift time values as NumPy array
+- `intensity`: Intensity values as NumPy array
+- `peaks`: Tuple of (drift_time_array, intensity_array)
+- `total_ion_current`: Sum of intensities
+- `base_peak_drift_time`: Drift time of most intense point
+- `base_peak_intensity`: Intensity of base peak
+
+**Methods:**
+- `from_arrays(drift_time, intensity, mz=None, name=None)`: Create from arrays (class method)
+- `from_dataframe(df, **metadata)`: Create from DataFrame (class method)
+- `to_dataframe()`: Convert to DataFrame
 
 ### Identifications, ProteinIdentifications & PeptideIdentifications
 
