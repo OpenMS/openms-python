@@ -3,6 +3,10 @@ Pythonic wrapper for pyOpenMS MSChromatogram for mobilogram representation.
 
 A mobilogram is a chromatogram in the ion mobility dimension, representing
 intensity vs. drift time for a specific m/z value.
+
+Note: OpenMS C++ has a native Mobilogram class that may not yet be wrapped
+in pyopenms. This wrapper uses MSChromatogram as the underlying representation
+for mobilogram data.
 """
 
 from typing import Tuple, Optional
@@ -19,6 +23,10 @@ class Py_Mobilogram(MetaInfoMappingMixin):
 
     A mobilogram represents the ion mobility dimension for a specific m/z,
     showing intensity vs. drift time (or other ion mobility values).
+
+    Note: OpenMS C++ has a native Mobilogram class that may not yet be wrapped
+    in pyopenms. This wrapper uses MSChromatogram as the underlying representation
+    for mobilogram data.
 
     Example:
         >>> mob = Py_Mobilogram(native_chromatogram)

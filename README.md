@@ -338,7 +338,9 @@ print(df)
 
 #### Mobilograms
 
-Mobilograms represent the ion mobility dimension, showing intensity vs. drift time for a specific m/z:
+Mobilograms represent the ion mobility dimension, showing intensity vs. drift time for a specific m/z.
+
+**Note:** OpenMS C++ has a native `Mobilogram` class that may not yet be wrapped in pyopenms. This wrapper uses `MSChromatogram` as the underlying representation for mobilogram data.
 
 ```python
 from openms_python import Py_Mobilogram
