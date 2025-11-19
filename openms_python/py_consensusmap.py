@@ -164,6 +164,8 @@ class Py_ConsensusMap:
         *,
         alignment_method: str = "pose_clustering",
         alignment_params: Optional[Dict[str, Union[int, float, str]]] = None,
+        grouping_method: str = "qt",
+        grouping_params: Optional[Dict[str, Union[int, float, str]]] = None,
     ) -> 'Py_ConsensusMap':
         """Align multiple feature maps and return their linked consensus map.
 
@@ -180,6 +182,13 @@ class Py_ConsensusMap:
         alignment_params:
             Optional dictionary of parameters applied to the selected
             alignment algorithm.
+        grouping_method:
+            Name of the OpenMS feature grouping algorithm to use. Supported values
+            are ``"qt"`` (QT clustering, default), ``"kd"`` (KD-tree based),
+            ``"labeled"`` (for labeled data), and ``"unlabeled"`` (for unlabeled data).
+        grouping_params:
+            Optional dictionary of parameters applied to the selected
+            grouping algorithm.
         """
 
         if not feature_maps:
@@ -187,7 +196,7 @@ class Py_ConsensusMap:
 
         native_maps = [cls._copy_feature_map(feature_map) for feature_map in feature_maps]
         cls._align_feature_maps(native_maps, alignment_method, alignment_params)
-        consensus_map = cls._link_feature_maps(native_maps)
+        consensus_map = cls._link_feature_maps(native_maps, grouping_method, grouping_params)
         return cls(consensus_map)
 
     # ==================== pandas integration ====================
@@ -389,10 +398,36 @@ class Py_ConsensusMap:
         )
 
     @staticmethod
+    def _create_grouping_algorithm(method: str):
+        """Create the appropriate feature grouping algorithm."""
+        normalized = method.lower()
+        if normalized in {"qt", "qtcluster"}:
+            return oms.FeatureGroupingAlgorithmQT()
+        if normalized in {"kd", "tree"}:
+            return oms.FeatureGroupingAlgorithmKD()
+        if normalized == "labeled":
+            return oms.FeatureGroupingAlgorithmLabeled()
+        if normalized == "unlabeled":
+            return oms.FeatureGroupingAlgorithmUnlabeled()
+        raise ValueError(
+            "Unsupported grouping_method. Use 'qt', 'kd', 'labeled', or 'unlabeled'."
+        )
+
+    @staticmethod
     def _link_feature_maps(
         feature_maps: Sequence[oms.FeatureMap],
+        grouping_method: str = "qt",
+        grouping_params: Optional[Dict[str, Union[int, float, str]]] = None,
     ) -> oms.ConsensusMap:
-        grouping = oms.FeatureGroupingAlgorithmQT()
+        grouping = Py_ConsensusMap._create_grouping_algorithm(grouping_method)
+        
+        # Apply parameters if provided
+        if grouping_params:
+            params = grouping.getDefaults()
+            for key, value in grouping_params.items():
+                params.setValue(str(key), value)
+            grouping.setParameters(params)
+        
         consensus_map = oms.ConsensusMap()
         grouping.group(feature_maps, consensus_map)
 
