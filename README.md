@@ -267,6 +267,78 @@ for key in feature:
     print(key, feature[key])
 ```
 
+### Working with Amino Acid Sequences
+
+The `Py_AASequence` wrapper provides a Pythonic interface to amino acid sequences with support for common operations like sequence reversal and shuffling for decoy generation. All operations delegate to pyOpenMS functionality to minimize reimplementation.
+
+```python
+from openms_python import Py_AASequence
+
+# Create a sequence from string
+seq = Py_AASequence.from_string("PEPTIDERK")
+
+# Access properties
+print(f"Sequence: {seq.sequence}")              # PEPTIDERK
+print(f"Length: {len(seq)}")                    # 9
+print(f"Mono weight: {seq.mono_weight:.2f} Da") # 1083.56 Da
+print(f"Formula: {seq.formula}")                # C46H77N13O17
+
+# Iterate over amino acids
+for aa in seq:
+    print(aa)  # P, E, P, T, I, D, E, R, K
+
+# Generate decoy sequences
+reversed_seq = seq.reverse()
+print(reversed_seq.sequence)  # KREDITPEP
+
+# Reverse with enzyme constraint (preserves cleavage sites)
+reversed_enzyme = seq.reverse_with_enzyme("Trypsin")
+print(reversed_enzyme.sequence)  # EDITPEPRK
+
+# Shuffle with reproducible seed
+shuffled = seq.shuffle(enzyme="Trypsin", seed=42)
+print(shuffled.sequence)  # IPEDTEPRK (same with seed=42)
+
+# Calculate m/z for different charge states
+mz1 = seq.get_mz(1)  # 1084.56
+mz2 = seq.get_mz(2)  # 542.79
+mz3 = seq.get_mz(3)  # 362.19
+
+# Query sequence content
+has_tide = seq.has_substring("TIDE")  # True
+starts_pep = seq.has_prefix("PEP")    # True
+ends_rk = seq.has_suffix("RK")        # True
+
+# Access individual residues
+first_aa = seq[0]  # "P"
+
+# Work with modified sequences
+mod_seq = Py_AASequence.from_string("PEPTIDEM(Oxidation)K")
+print(f"Is modified: {mod_seq.is_modified}")           # True
+print(f"Unmodified: {mod_seq.unmodified_sequence}")    # PEPTIDEMK
+```
+
+**Properties:**
+- `sequence`: Full sequence string with modifications
+- `unmodified_sequence`: Sequence without modifications
+- `mono_weight`: Monoisotopic weight in Da
+- `average_weight`: Average weight in Da
+- `formula`: Molecular formula
+- `is_modified`: Whether sequence has modifications
+- `has_n_terminal_modification`: N-terminal modification status
+- `has_c_terminal_modification`: C-terminal modification status
+- `native`: Access to underlying pyOpenMS AASequence
+
+**Methods:**
+- `from_string(sequence_str)`: Create from string (class method)
+- `reverse()`: Reverse entire sequence
+- `reverse_with_enzyme(enzyme)`: Reverse peptides between cleavage sites
+- `shuffle(enzyme, max_attempts, seed)`: Shuffle with enzyme constraints
+- `get_mz(charge)`: Calculate m/z for charge state
+- `has_substring(substring)`: Check for substring
+- `has_prefix(prefix)`: Check for prefix
+- `has_suffix(suffix)`: Check for suffix
+
 ### Working with Spectra
 
 ```python
@@ -866,6 +938,29 @@ plt.show()
 - `normalize_intensity(max_value)`: Normalize intensities to max value
 - `normalize_to_tic()`: Normalize so intensities sum to 1.0
 
+### Py_AASequence
+
+**Properties:**
+- `sequence`: Full sequence string with modifications
+- `unmodified_sequence`: Sequence without modifications
+- `mono_weight`: Monoisotopic weight in Da
+- `average_weight`: Average weight in Da
+- `formula`: Molecular formula
+- `is_modified`: Whether sequence has modifications
+- `has_n_terminal_modification`: N-terminal modification status
+- `has_c_terminal_modification`: C-terminal modification status
+- `native`: Access to underlying pyOpenMS AASequence
+
+**Methods:**
+- `from_string(sequence_str)`: Create from string (class method)
+- `reverse()`: Reverse entire sequence
+- `reverse_with_enzyme(enzyme)`: Reverse peptides between enzymatic cleavage sites
+- `shuffle(enzyme, max_attempts, seed)`: Shuffle peptides with enzyme constraints
+- `get_mz(charge)`: Calculate m/z for given charge state
+- `has_substring(substring)`: Check if sequence contains substring
+- `has_prefix(prefix)`: Check if sequence starts with prefix
+- `has_suffix(suffix)`: Check if sequence ends with suffix
+
 ### Py_MSSpectrum
 
 **Properties:**
@@ -954,6 +1049,10 @@ pip install -e ".[dev]"
 | Iterate chromatograms | Manual loop + range check | `for chrom in exp.chromatograms():` |
 | Peak data | `peaks = spec.get_peaks(); mz = peaks[0]` | `mz, intensity = spec.peaks` |
 | DataFrame | Not available | `df = exp.to_dataframe()` |
+| Create sequence | `oms.AASequence.fromString("PEP")` | `Py_AASequence.from_string("PEP")` |
+| Get sequence weight | `seq.getMonoWeight()` | `seq.mono_weight` |
+| Reverse sequence | `DecoyGenerator().reverseProtein(seq)` | `seq.reverse()` |
+| Iterate residues | Manual loop with `getResidue(i)` | `for aa in seq:` |
 
 ## Contributing
 
