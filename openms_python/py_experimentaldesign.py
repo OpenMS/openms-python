@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Union, Optional, Set, TYPE_CHECKING
 
+import pandas as pd
 import pyopenms as oms
 
 from ._io_utils import ensure_allowed_suffix
@@ -255,6 +256,149 @@ class Py_ExperimentalDesign:
         """
         design = oms.ExperimentalDesign.fromIdentifications(protein_ids)
         return cls(design)
+
+    @classmethod
+    def from_dataframe(cls, df: pd.DataFrame) -> "Py_ExperimentalDesign":
+        """Create an ExperimentalDesign from a pandas DataFrame.
+
+        Parameters
+        ----------
+        df:
+            DataFrame with columns: Fraction_Group, Fraction, Spectra_Filepath,
+            Label, Sample.
+
+        Returns
+        -------
+        Py_ExperimentalDesign
+            A new instance created from the DataFrame.
+
+        Raises
+        ------
+        ValueError
+            If required columns are missing from the DataFrame.
+
+        Example:
+            >>> import pandas as pd
+            >>> df = pd.DataFrame({
+            ...     'Fraction_Group': [1, 1, 2, 2],
+            ...     'Fraction': [1, 2, 1, 2],
+            ...     'Spectra_Filepath': ['f1.mzML', 'f2.mzML', 'f3.mzML', 'f4.mzML'],
+            ...     'Label': [1, 1, 1, 1],
+            ...     'Sample': [1, 1, 2, 2]
+            ... })
+            >>> design = Py_ExperimentalDesign.from_dataframe(df)
+        """
+        import tempfile
+
+        required_columns = {
+            "Fraction_Group",
+            "Fraction",
+            "Spectra_Filepath",
+            "Label",
+            "Sample",
+        }
+        missing = required_columns - set(df.columns)
+        if missing:
+            missing_str = ", ".join(sorted(missing))
+            raise ValueError(
+                f"DataFrame is missing required columns: {missing_str}. "
+                f"Required columns are: {', '.join(sorted(required_columns))}"
+            )
+
+        # Write DataFrame to a temporary TSV file and load it
+        # This ensures proper sample section setup by the OpenMS loader
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False) as f:
+            # Write in the expected format
+            df.to_csv(f, sep="\t", index=False)
+            temp_path = f.name
+
+        try:
+            edf = oms.ExperimentalDesignFile()
+            design = edf.load(temp_path, False)
+            return cls(design)
+        finally:
+            Path(temp_path).unlink()
+
+    @classmethod
+    def from_df(cls, df: pd.DataFrame) -> "Py_ExperimentalDesign":
+        """Alias for :meth:`from_dataframe` matching :meth:`get_df`.
+
+        Parameters
+        ----------
+        df:
+            DataFrame with experimental design data.
+
+        Returns
+        -------
+        Py_ExperimentalDesign
+            A new instance created from the DataFrame.
+        """
+        return cls.from_dataframe(df)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert the ExperimentalDesign to a pandas DataFrame.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with columns: Fraction_Group, Fraction, Spectra_Filepath,
+            Label, Sample.
+
+        Example:
+            >>> design = Py_ExperimentalDesign.from_file("design.tsv")
+            >>> df = design.to_dataframe()
+        """
+        ms_files = self._design.getMSFileSection()
+
+        # Get sample IDs from the sample section
+        sample_section = self._design.getSampleSection()
+        sample_ids = sorted(sample_section.getSamples())
+        # Create index-to-id mapping (0-based index to actual sample ID)
+        index_to_sample_id = {}
+        for sample_id in sample_ids:
+            # Decode if bytes
+            if isinstance(sample_id, bytes):
+                sample_id_str = sample_id.decode()
+            else:
+                sample_id_str = str(sample_id)
+            # Try to convert to int if possible
+            try:
+                sample_id_value = int(sample_id_str)
+            except ValueError:
+                sample_id_value = sample_id_str
+            index_to_sample_id[len(index_to_sample_id)] = sample_id_value
+
+        data = {
+            "Fraction_Group": [],
+            "Fraction": [],
+            "Spectra_Filepath": [],
+            "Label": [],
+            "Sample": [],
+        }
+
+        for entry in ms_files:
+            data["Fraction_Group"].append(entry.fraction_group)
+            data["Fraction"].append(entry.fraction)
+            # Decode path if it's bytes
+            path = entry.path
+            if isinstance(path, bytes):
+                path = path.decode()
+            data["Spectra_Filepath"].append(path)
+            data["Label"].append(entry.label)
+            # Map 0-based index back to actual sample ID
+            data["Sample"].append(index_to_sample_id.get(entry.sample, entry.sample))
+
+        return pd.DataFrame(data)
+
+    def get_df(self) -> pd.DataFrame:
+        """Alias for :meth:`to_dataframe`.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with experimental design data.
+        """
+        return self.to_dataframe()
 
     # ==================== Delegation ====================
 

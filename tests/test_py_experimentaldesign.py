@@ -3,6 +3,7 @@
 from pathlib import Path
 import tempfile
 
+import pandas as pd
 import pytest
 import pyopenms as oms
 
@@ -231,3 +232,124 @@ def test_py_experimentaldesign_from_identifications():
 
     assert isinstance(design, Py_ExperimentalDesign)
     assert isinstance(design.native, oms.ExperimentalDesign)
+
+
+def test_py_experimentaldesign_from_dataframe():
+    """Test creating ExperimentalDesign from a pandas DataFrame."""
+    import pandas as pd
+
+    # Create a simple DataFrame
+    df = pd.DataFrame(
+        {
+            "Fraction_Group": [1, 1, 2, 2],
+            "Fraction": [1, 2, 1, 2],
+            "Spectra_Filepath": ["f1.mzML", "f2.mzML", "f3.mzML", "f4.mzML"],
+            "Label": [1, 1, 1, 1],
+            "Sample": [1, 1, 2, 2],
+        }
+    )
+
+    design = Py_ExperimentalDesign.from_dataframe(df)
+
+    assert isinstance(design, Py_ExperimentalDesign)
+    assert design.n_ms_files == 4
+    assert design.n_samples == 2
+    assert design.n_fraction_groups == 2
+
+
+def test_py_experimentaldesign_from_df_alias():
+    """Test that from_df is an alias for from_dataframe."""
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {
+            "Fraction_Group": [1],
+            "Fraction": [1],
+            "Spectra_Filepath": ["test.mzML"],
+            "Label": [1],
+            "Sample": [1],
+        }
+    )
+
+    design1 = Py_ExperimentalDesign.from_dataframe(df)
+    design2 = Py_ExperimentalDesign.from_df(df)
+
+    assert design1.n_ms_files == design2.n_ms_files
+
+
+def test_py_experimentaldesign_from_dataframe_missing_columns():
+    """Test that from_dataframe raises error for missing columns."""
+    import pandas as pd
+
+    # Missing Sample column
+    df = pd.DataFrame(
+        {
+            "Fraction_Group": [1],
+            "Fraction": [1],
+            "Spectra_Filepath": ["test.mzML"],
+            "Label": [1],
+        }
+    )
+
+    with pytest.raises(ValueError, match="missing required columns"):
+        Py_ExperimentalDesign.from_dataframe(df)
+
+
+def test_py_experimentaldesign_to_dataframe():
+    """Test converting ExperimentalDesign to DataFrame."""
+    example_path = get_example("experimental_design.tsv")
+    design = Py_ExperimentalDesign.from_file(example_path)
+
+    df = design.to_dataframe()
+
+    assert isinstance(df, pd.DataFrame)
+    assert len(df) == 6
+    assert set(df.columns) == {
+        "Fraction_Group",
+        "Fraction",
+        "Spectra_Filepath",
+        "Label",
+        "Sample",
+    }
+    assert df["Sample"].nunique() == 2
+
+
+def test_py_experimentaldesign_get_df_alias():
+    """Test that get_df is an alias for to_dataframe."""
+    example_path = get_example("experimental_design.tsv")
+    design = Py_ExperimentalDesign.from_file(example_path)
+
+    df1 = design.to_dataframe()
+    df2 = design.get_df()
+
+    assert df1.equals(df2)
+
+
+def test_py_experimentaldesign_dataframe_roundtrip():
+    """Test that DataFrame roundtrip preserves data."""
+    import pandas as pd
+
+    # Create a DataFrame with specific data
+    original_df = pd.DataFrame(
+        {
+            "Fraction_Group": [1, 1, 2],
+            "Fraction": [1, 2, 1],
+            "Spectra_Filepath": ["a.mzML", "b.mzML", "c.mzML"],
+            "Label": [1, 1, 2],
+            "Sample": [1, 1, 2],
+        }
+    )
+
+    # Create design from DataFrame
+    design = Py_ExperimentalDesign.from_dataframe(original_df)
+
+    # Convert back to DataFrame
+    result_df = design.to_dataframe()
+
+    # Check that data is preserved
+    assert len(result_df) == len(original_df)
+    assert result_df["Fraction_Group"].tolist() == original_df["Fraction_Group"].tolist()
+    assert result_df["Fraction"].tolist() == original_df["Fraction"].tolist()
+    assert result_df["Spectra_Filepath"].tolist() == original_df["Spectra_Filepath"].tolist()
+    assert result_df["Label"].tolist() == original_df["Label"].tolist()
+    assert result_df["Sample"].tolist() == original_df["Sample"].tolist()

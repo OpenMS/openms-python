@@ -204,6 +204,7 @@ experimental metadata before analysis.
 
 ```python
 from openms_python import Py_ExperimentalDesign
+import pandas as pd
 
 # Load an experimental design from a TSV file
 design = Py_ExperimentalDesign.from_file("design.tsv")
@@ -215,6 +216,19 @@ print(f"Fractionated: {design.is_fractionated}")
 
 # Get a summary
 design.print_summary()
+
+# Convert to pandas DataFrame for analysis
+df = design.to_dataframe()
+
+# Create from a pandas DataFrame
+df = pd.DataFrame({
+    'Fraction_Group': [1, 1, 2, 2],
+    'Fraction': [1, 2, 1, 2],
+    'Spectra_Filepath': ['f1.mzML', 'f2.mzML', 'f3.mzML', 'f4.mzML'],
+    'Label': [1, 1, 1, 1],
+    'Sample': [1, 1, 2, 2]
+})
+design = Py_ExperimentalDesign.from_dataframe(df)
 
 # Create from existing OpenMS objects
 from openms_python import Py_ConsensusMap
