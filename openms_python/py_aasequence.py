@@ -277,3 +277,4 @@ class Py_AASequence:
             bool: True if sequence ends with suffix.
         """
         return self._sequence.hasSuffix(oms.AASequence.fromString(suffix))
+
