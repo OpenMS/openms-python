@@ -308,7 +308,23 @@ class Py_AASequence:
     def __rmul__(self, times: int) -> Py_AASequence:
         """Support int * Py_AASequence."""
         return self.__mul__(times)
-
+    def __contains__(self, substring: str) -> bool:
+        """Check if substring is in sequence."""
+        return self.has_substring(substring)
+    
+    def __hash__(self) -> int:
+        """Make sequences hashable for use in sets/dicts."""
+        return hash(self.sequence)
+    
+    def __lt__(self, other: Py_AASequence) -> bool:
+        """Lexicographic comparison by sequence."""
+        if not isinstance(other, Py_AASequence):
+            return NotImplemented
+        return self.sequence < other.sequence
+    def count(self, residue: str) -> int:
+        """Count occurrences of a residue, to be consistent with str.count()."""
+        return self._sequence.count(residue)
+    
     # ==================== Additional Utilities ====================
 
     def get_mz(self, charge: int) -> float:
