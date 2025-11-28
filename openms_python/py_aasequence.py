@@ -8,7 +8,7 @@ import pyopenms as oms
 
 class Py_AASequence:
     """
-    A Pythonic wrapper around pyOpenMS AASequence.
+    A Pythonic, immutable wrapper around pyOpenMS AASequence.
 
     This class provides intuitive properties and methods for working with
     amino acid sequences, including common operations like reversing and
@@ -204,25 +204,110 @@ class Py_AASequence:
             return False
         return self.sequence == other.sequence
 
-    def __getitem__(self, index: int) -> str:
+    def __getitem__(self, index):
         """
-        Get residue at position.
+        Get residue(s) at position(s).
+
+        Supports both single indexing and slicing, returning Py_AASequence objects.
 
         Args:
-            index: Position in the sequence (0-based).
+            index: Integer for single residue, or slice object for subsequence.
 
         Returns:
-            str: Single letter amino acid code.
+            Py_AASequence: Wrapped residue or subsequence.
+
+        Example:
+            >>> seq = Py_AASequence.from_string("PEPTIDE")
+            >>> seq[1]  # Returns Py_AASequence("E")
+            >>> seq[1:4]  # Returns Py_AASequence("EPT")
+            >>> seq[-1]  # Returns Py_AASequence("E")
         """
-        if index < 0 or index >= len(self):
-            raise IndexError(f"Index {index} out of range for sequence of length {len(self)}")
-        residue = self._sequence.getResidue(index)
-        return residue.getOneLetterCode()
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self))
+            if step != 1:
+                raise ValueError("Step slicing is not supported for amino acid sequences")
+            subsequence = self.sequence[start:stop]
+            return Py_AASequence.from_string(subsequence)
+        else:
+            # Handle negative indices
+            if index < 0:
+                index = len(self) + index
+            if index < 0 or index >= len(self):
+                raise IndexError(f"Index {index} out of range for sequence of length {len(self)}")
+            residue = self._sequence.getResidue(index)
+            residue_char = residue.getOneLetterCode()
+            return Py_AASequence.from_string(residue_char)
 
     def __iter__(self):
         """Iterate over residues."""
         for i in range(len(self)):
             yield self[i]
+    def __add__(self, other: Py_AASequence | str) -> Py_AASequence:
+        """
+        Concatenate sequences.
+
+        Args:
+            other: Py_AASequence or string to append.
+
+        Returns:
+            Py_AASequence: New concatenated sequence.
+
+        Example:
+            >>> seq1 = Py_AASequence.from_string("PEP")
+            >>> seq2 = Py_AASequence.from_string("TIDE")
+            >>> combined = seq1 + seq2
+            >>> print(combined.sequence)
+            PEPTIDE
+            >>> combined2 = seq1 + "TIDE"
+            >>> print(combined2.sequence)
+            PEPTIDE
+        """
+        if isinstance(other, Py_AASequence):
+            combined_str = self.sequence + other.sequence
+        elif isinstance(other, str):
+            combined_str = self.sequence + other
+        else:
+            return NotImplemented
+        return Py_AASequence.from_string(combined_str)
+
+    def __radd__(self, other: str) -> Py_AASequence:
+        """
+        Support string + Py_AASequence.
+
+        Example:
+            >>> seq = Py_AASequence.from_string("TIDE")
+            >>> combined = "PEP" + seq
+            >>> print(combined.sequence)
+            PEPTIDE
+        """
+        if isinstance(other, str):
+            combined_str = other + self.sequence
+            return Py_AASequence.from_string(combined_str)
+        return NotImplemented
+
+    def __mul__(self, times: int) -> Py_AASequence:
+        """
+        Repeat sequence.
+
+        Args:
+            times: Number of times to repeat (must be >= 0).
+
+        Returns:
+            Py_AASequence: New repeated sequence.
+
+        Example:
+            >>> seq = Py_AASequence.from_string("PEP")
+            >>> repeated = seq * 3
+            >>> print(repeated.sequence)
+            PEPPEPPEP
+        """
+        if not isinstance(times, int) or times < 0:
+            return NotImplemented
+        return Py_AASequence.from_string(self.sequence * times)
+
+    def __rmul__(self, times: int) -> Py_AASequence:
+        """Support int * Py_AASequence."""
+        return self.__mul__(times)
 
     # ==================== Additional Utilities ====================
 
