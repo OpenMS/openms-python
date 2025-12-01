@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Literal
 import pyopenms as oms
 
 
@@ -391,4 +391,27 @@ class Py_AASequence:
             bool: True if sequence ends with suffix.
         """
         return self._sequence.hasSuffix(oms.AASequence.fromString(suffix))
+    
 
+    # ===================== Exporting =======================
+    def to_string(self, modified=True, mod_format: Optional[Literal['unimod', 'bracket']] = 'unimod') -> str:
+        """
+        Get string representation of the sequence.
+
+        Returns:
+            str: Amino acid sequence as string.
+
+        Example:
+            >>> seq = Py_AASequence.from_string("PEPTIDE")
+            >>> seq_str = seq.to_string()
+        """
+        if not modified:
+            return self.unmodified_sequence
+        
+        else:
+            if mod_format == 'unimod':
+                return self._sequence.toUniModString()
+            elif mod_format == 'bracket':
+                return self._sequence.toBracketString()
+            else:
+                raise ValueError(f"Unsupported mod_format: {mod_format}, supported are 'unimod' and 'bracket'")
