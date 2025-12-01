@@ -64,10 +64,10 @@ class Py_AASequence:
         Creates Py_AASequence from native pyOpenMS AASequence.
 
         Args:
-            native_sequence (oms.AASequence): 
+            native_sequence (oms.AASequence): Native pyOpenMS AASequence object.
 
         Returns:
-            Py_AASequence: New wrapped opject
+            Py_AASequence: New wrapped object.
 
         """
         return cls(native_sequence)
