@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Optional, Literal
 import pyopenms as oms
+import warnings
 
 
 class Py_AASequence:
@@ -334,8 +335,9 @@ class Py_AASequence:
             return NotImplemented
         return self.sequence < other.sequence
     def count(self, residue: str) -> int:
-        """Count occurrences of a residue, to be consistent with str.count()."""
-        return self._sequence.count(residue)
+        """Count occurrences of a residue, to be consistent with str.count(), note currently does not account for modifications"""
+        warnings.warn("count method does not account for modifications")
+        return self.unmodified_sequence.count(residue)
     
     # ==================== Additional Utilities ====================
 

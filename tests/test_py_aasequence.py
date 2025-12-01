@@ -289,3 +289,9 @@ def test_slicing():
     assert aa_seq[1:4].sequence == 'EPT'
     assert aa_seq[-2:].sequence == 'M(Oxidation)R'
 
+def test_count():
+    aa_seq = Py_AASequence.from_string('PEPTIDEM(Oxidation)R')
+    assert aa_seq.count('E') == 2
+    assert aa_seq.count('P') == 2
+    assert aa_seq.count('K') == 0
+
