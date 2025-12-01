@@ -40,7 +40,7 @@ class Py_AASequence:
     @classmethod
     def from_string(cls, sequence_str: str) -> Py_AASequence:
         """
-        Create AASequence from string representation.
+        Create Py_AASequence from string representation.
 
         Args:
             sequence_str: String representation of the amino acid sequence.
@@ -56,6 +56,20 @@ class Py_AASequence:
         return cls(oms.AASequence.fromString(sequence_str))
 
     # ==================== Pythonic Properties ====================
+
+    @classmethod
+    def from_native(cls, native_sequence: oms.AASequence) -> Py_AASequence:
+        """
+        Creates Py_AASequence from native pyOpenMS AASequence.
+
+        Args:
+            native_sequence (oms.AASequence): 
+
+        Returns:
+            Py_AASequence: New wrapped opject
+
+        """
+        return cls(native_sequence)
 
     @property
     def native(self) -> oms.AASequence:
@@ -226,8 +240,7 @@ class Py_AASequence:
             start, stop, step = index.indices(len(self))
             if step != 1:
                 raise ValueError("Step slicing is not supported for amino acid sequences")
-            subsequence = self.sequence[start:stop]
-            return Py_AASequence.from_string(subsequence)
+            return Py_AASequence.from_native(self._sequence.getSubsequence(start, stop - start))
         else:
             # Handle negative indices
             if index < 0:
