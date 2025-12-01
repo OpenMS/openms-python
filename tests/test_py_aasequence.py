@@ -118,7 +118,7 @@ def test_py_aasequence_iteration():
     seq = Py_AASequence.from_string("PEPTIDE")
     residues = list(seq)
 
-    assert residues == ["P", "E", "P", "T", "I", "D", "E"]
+    assert [res.sequence for res in residues] == ["P", "E", "P", "T", "I", "D", "E"]
     assert len(residues) == 7
 
 
@@ -126,16 +126,13 @@ def test_py_aasequence_indexing():
     """Test indexing into sequence."""
     seq = Py_AASequence.from_string("PEPTIDE")
 
-    assert seq[0] == "P"
-    assert seq[1] == "E"
-    assert seq[6] == "E"
+    assert seq[0].sequence == "P"
+    assert seq[1].sequence == "E"
+    assert seq[6].sequence == "E"
 
     # Test out of bounds
     with pytest.raises(IndexError):
         _ = seq[7]
-
-    with pytest.raises(IndexError):
-        _ = seq[-1]
 
 
 def test_py_aasequence_string_representation():
@@ -258,3 +255,37 @@ def test_py_aasequence_with_native_aasequence():
 
     assert seq.sequence == "PEPTIDE"
     assert seq.native is native
+
+
+def test_py_aasequence_to_string():
+    """Test to_string method with different options."""
+    seq = Py_AASequence.from_string("PEPTIDEM(Oxidation)")
+
+    # Default should return modified string in default format
+    mod_str = seq.to_string()
+    assert mod_str == "PEPTIDEM(Oxidation)"
+
+    # Unmodified should return unmodified sequence
+    unmod_str = seq.to_string(modified=False)
+    assert unmod_str == "PEPTIDEM"
+
+    # Bracket format
+    bracket_str = seq.to_string(modified=True, mod_format='bracket')
+    assert bracket_str == "PEPTIDEM[147]"
+
+    # unimod format
+    unimod_str = seq.to_string(modified=True, mod_format='unimod')
+    assert unimod_str == "PEPTIDEM(UniMod:35)"
+
+    # Invalid format should raise error
+    with pytest.raises(ValueError):
+        _ = seq.to_string(modified=True, mod_format='invalid_format')
+
+
+def test_slicing():
+    aa_seq = Py_AASequence.from_string('PEPTIDEM(Oxidation)R')
+    assert aa_seq[0].sequence == 'P'
+    assert aa_seq[-1].sequence == 'R'
+    assert aa_seq[1:4].sequence == 'EPT'
+    assert aa_seq[-2:].sequence == 'M(Oxidation)R'
+

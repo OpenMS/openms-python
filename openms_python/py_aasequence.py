@@ -245,7 +245,7 @@ class Py_AASequence:
             # Handle negative indices
             if index < 0:
                 index = len(self) + index
-            if index < 0 or index >= len(self):
+            if index >= len(self):
                 raise IndexError(f"Index {index} out of range for sequence of length {len(self)}")
             residue = self._sequence.getResidue(index)
             residue_char = residue.getOneLetterCode()
@@ -394,9 +394,17 @@ class Py_AASequence:
     
 
     # ===================== Exporting =======================
-    def to_string(self, modified=True, mod_format: Optional[Literal['unimod', 'bracket']] = 'unimod') -> str:
+    def to_string(self, modified=True, mod_format: Optional[Literal['default', 'unimod', 'bracket']] = 'default') -> str:
         """
         Get string representation of the sequence.
+
+        Args:
+            modified (bool): Whether to include modifications in the string.
+            mod_format (Optional[Literal['default', 'unimod', 'bracket']]): Format for modifications.
+                'default' for OpenMS format,
+                'unimod' for UniMod format,
+                'bracket' for bracket notation.
+                 Default is 'unimod'.                
 
         Returns:
             str: Amino acid sequence as string.
@@ -409,7 +417,9 @@ class Py_AASequence:
             return self.unmodified_sequence
         
         else:
-            if mod_format == 'unimod':
+            if mod_format == 'default':
+                return self._sequence.toString()
+            elif mod_format == 'unimod':
                 return self._sequence.toUniModString()
             elif mod_format == 'bracket':
                 return self._sequence.toBracketString()
