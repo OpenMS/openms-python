@@ -247,9 +247,8 @@ class Py_AASequence:
                 index = len(self) + index
             if index >= len(self):
                 raise IndexError(f"Index {index} out of range for sequence of length {len(self)}")
-            residue = self._sequence.getResidue(index)
-            residue_char = residue.getOneLetterCode()
-            return Py_AASequence.from_string(residue_char)
+            residue = self._sequence.getSubsequence(index, 1)
+            return Py_AASequence.from_native(residue)
 
     def __iter__(self):
         """Iterate over residues."""
