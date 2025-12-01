@@ -394,7 +394,7 @@ class Py_AASequence:
     
 
     # ===================== Exporting =======================
-    def to_string(self, modified=True, mod_format: Optional[Literal['default', 'unimod', 'bracket']] = 'default') -> str:
+    def to_string(self, modified=True, mod_format: Literal['default', 'unimod', 'bracket'] = 'default') -> str:
         """
         Get string representation of the sequence.
 
@@ -404,7 +404,7 @@ class Py_AASequence:
                 'default' for OpenMS format,
                 'unimod' for UniMod format,
                 'bracket' for bracket notation.
-                 Default is 'unimod'.                
+                 Default is 'default'.                
 
         Returns:
             str: Amino acid sequence as string.
@@ -424,4 +424,4 @@ class Py_AASequence:
             elif mod_format == 'bracket':
                 return self._sequence.toBracketString()
             else:
-                raise ValueError(f"Unsupported mod_format: {mod_format}, supported are 'unimod' and 'bracket'")
+                raise ValueError(f"Unsupported mod_format: {mod_format}, supported are 'default', 'unimod' and 'bracket'")
