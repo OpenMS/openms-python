@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Literal
 import pyopenms as oms
+import warnings
 
 
 class Py_AASequence:
     """
-    A Pythonic wrapper around pyOpenMS AASequence.
+    A Pythonic, immutable wrapper around pyOpenMS AASequence.
 
     This class provides intuitive properties and methods for working with
     amino acid sequences, including common operations like reversing and
@@ -40,7 +41,7 @@ class Py_AASequence:
     @classmethod
     def from_string(cls, sequence_str: str) -> Py_AASequence:
         """
-        Create AASequence from string representation.
+        Create Py_AASequence from string representation.
 
         Args:
             sequence_str: String representation of the amino acid sequence.
@@ -56,6 +57,20 @@ class Py_AASequence:
         return cls(oms.AASequence.fromString(sequence_str))
 
     # ==================== Pythonic Properties ====================
+
+    @classmethod
+    def from_native(cls, native_sequence: oms.AASequence) -> Py_AASequence:
+        """
+        Creates Py_AASequence from native pyOpenMS AASequence.
+
+        Args:
+            native_sequence (oms.AASequence): 
+
+        Returns:
+            Py_AASequence: New wrapped opject
+
+        """
+        return cls(native_sequence)
 
     @property
     def native(self) -> oms.AASequence:
@@ -204,26 +219,126 @@ class Py_AASequence:
             return False
         return self.sequence == other.sequence
 
-    def __getitem__(self, index: int) -> str:
+    def __getitem__(self, index):
         """
-        Get residue at position.
+        Get residue(s) at position(s).
+
+        Supports both single indexing and slicing, returning Py_AASequence objects.
 
         Args:
-            index: Position in the sequence (0-based).
+            index: Integer for single residue, or slice object for subsequence.
 
         Returns:
-            str: Single letter amino acid code.
+            Py_AASequence: Wrapped residue or subsequence.
+
+        Example:
+            >>> seq = Py_AASequence.from_string("PEPTIDE")
+            >>> seq[1]  # Returns Py_AASequence("E")
+            >>> seq[1:4]  # Returns Py_AASequence("EPT")
+            >>> seq[-1]  # Returns Py_AASequence("E")
         """
-        if index < 0 or index >= len(self):
-            raise IndexError(f"Index {index} out of range for sequence of length {len(self)}")
-        residue = self._sequence.getResidue(index)
-        return residue.getOneLetterCode()
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self))
+            if step != 1:
+                raise ValueError("Step slicing is not supported for amino acid sequences")
+            return Py_AASequence.from_native(self._sequence.getSubsequence(start, stop - start))
+        else:
+            # Handle negative indices
+            if index < 0:
+                index = len(self) + index
+            if index >= len(self):
+                raise IndexError(f"Index {index} out of range for sequence of length {len(self)}")
+            residue = self._sequence.getSubsequence(index, 1)
+            return Py_AASequence.from_native(residue)
 
     def __iter__(self):
         """Iterate over residues."""
         for i in range(len(self)):
             yield self[i]
+    def __add__(self, other: Py_AASequence | str) -> Py_AASequence:
+        """
+        Concatenate sequences.
 
+        Args:
+            other: Py_AASequence or string to append.
+
+        Returns:
+            Py_AASequence: New concatenated sequence.
+
+        Example:
+            >>> seq1 = Py_AASequence.from_string("PEP")
+            >>> seq2 = Py_AASequence.from_string("TIDE")
+            >>> combined = seq1 + seq2
+            >>> print(combined.sequence)
+            PEPTIDE
+            >>> combined2 = seq1 + "TIDE"
+            >>> print(combined2.sequence)
+            PEPTIDE
+        """
+        if isinstance(other, Py_AASequence):
+            combined_str = self.sequence + other.sequence
+        elif isinstance(other, str):
+            combined_str = self.sequence + other
+        else:
+            return NotImplemented
+        return Py_AASequence.from_string(combined_str)
+
+    def __radd__(self, other: str) -> Py_AASequence:
+        """
+        Support string + Py_AASequence.
+
+        Example:
+            >>> seq = Py_AASequence.from_string("TIDE")
+            >>> combined = "PEP" + seq
+            >>> print(combined.sequence)
+            PEPTIDE
+        """
+        if isinstance(other, str):
+            combined_str = other + self.sequence
+            return Py_AASequence.from_string(combined_str)
+        return NotImplemented
+
+    def __mul__(self, times: int) -> Py_AASequence:
+        """
+        Repeat sequence.
+
+        Args:
+            times: Number of times to repeat (must be >= 0).
+
+        Returns:
+            Py_AASequence: New repeated sequence.
+
+        Example:
+            >>> seq = Py_AASequence.from_string("PEP")
+            >>> repeated = seq * 3
+            >>> print(repeated.sequence)
+            PEPPEPPEP
+        """
+        if not isinstance(times, int) or times < 0:
+            return NotImplemented
+        return Py_AASequence.from_string(self.sequence * times)
+
+    def __rmul__(self, times: int) -> Py_AASequence:
+        """Support int * Py_AASequence."""
+        return self.__mul__(times)
+    def __contains__(self, substring: str) -> bool:
+        """Check if substring is in sequence."""
+        return self.has_substring(substring)
+    
+    def __hash__(self) -> int:
+        """Make sequences hashable for use in sets/dicts."""
+        return hash(self.sequence)
+    
+    def __lt__(self, other: Py_AASequence) -> bool:
+        """Lexicographic comparison by sequence."""
+        if not isinstance(other, Py_AASequence):
+            return NotImplemented
+        return self.sequence < other.sequence
+    def count(self, residue: str) -> int:
+        """Count occurrences of a residue, to be consistent with str.count(), note currently does not account for modifications"""
+        warnings.warn("count method does not account for modifications")
+        return self.unmodified_sequence.count(residue)
+    
     # ==================== Additional Utilities ====================
 
     def get_mz(self, charge: int) -> float:
@@ -277,4 +392,37 @@ class Py_AASequence:
             bool: True if sequence ends with suffix.
         """
         return self._sequence.hasSuffix(oms.AASequence.fromString(suffix))
+    
 
+    # ===================== Exporting =======================
+    def to_string(self, modified=True, mod_format: Literal['default', 'unimod', 'bracket'] = 'default') -> str:
+        """
+        Get string representation of the sequence.
+
+        Args:
+            modified (bool): Whether to include modifications in the string.
+            mod_format (Optional[Literal['default', 'unimod', 'bracket']]): Format for modifications.
+                'default' for OpenMS format,
+                'unimod' for UniMod format,
+                'bracket' for bracket notation.
+                 Default is 'default'.                
+
+        Returns:
+            str: Amino acid sequence as string.
+
+        Example:
+            >>> seq = Py_AASequence.from_string("PEPTIDE")
+            >>> seq_str = seq.to_string()
+        """
+        if not modified:
+            return self.unmodified_sequence
+        
+        else:
+            if mod_format == 'default':
+                return self._sequence.toString()
+            elif mod_format == 'unimod':
+                return self._sequence.toUniModString()
+            elif mod_format == 'bracket':
+                return self._sequence.toBracketString()
+            else:
+                raise ValueError(f"Unsupported mod_format: {mod_format}, supported are 'default', 'unimod' and 'bracket'")
