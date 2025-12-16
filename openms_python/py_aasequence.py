@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Optional, Literal
 import pyopenms as oms
 import warnings
+from .py_residue import Py_Residue
 
 
 class Py_AASequence:
@@ -64,10 +65,10 @@ class Py_AASequence:
         Creates Py_AASequence from native pyOpenMS AASequence.
 
         Args:
-            native_sequence (oms.AASequence): 
+            native_sequence (oms.AASequence): Native pyOpenMS AASequence object.
 
         Returns:
-            Py_AASequence: New wrapped opject
+            Py_AASequence: New wrapped object.
 
         """
         return cls(native_sequence)
@@ -242,20 +243,20 @@ class Py_AASequence:
             if step != 1:
                 raise ValueError("Step slicing is not supported for amino acid sequences")
             return Py_AASequence.from_native(self._sequence.getSubsequence(start, stop - start))
-        else:
+        else: # isinstance(index, int)
             # Handle negative indices
             if index < 0:
                 index = len(self) + index
             if index >= len(self):
                 raise IndexError(f"Index {index} out of range for sequence of length {len(self)}")
-            residue = self._sequence.getSubsequence(index, 1)
-            return Py_AASequence.from_native(residue)
+            residue = self._sequence.getResidue(index)
+            return Py_Residue.from_native(residue)
 
     def __iter__(self):
         """Iterate over residues."""
         for i in range(len(self)):
             yield self[i]
-    def __add__(self, other: Py_AASequence | str) -> Py_AASequence:
+    def __add__(self, other: Py_AASequence | str | Py_Residue) -> Py_AASequence:
         """
         Concatenate sequences.
 
@@ -279,6 +280,8 @@ class Py_AASequence:
             combined_str = self.sequence + other.sequence
         elif isinstance(other, str):
             combined_str = self.sequence + other
+        elif isinstance(other, Py_Residue):
+            combined_str = self.sequence + other.one_letter_code
         else:
             return NotImplemented
         return Py_AASequence.from_string(combined_str)
@@ -295,6 +298,9 @@ class Py_AASequence:
         """
         if isinstance(other, str):
             combined_str = other + self.sequence
+            return Py_AASequence.from_string(combined_str)
+        if isinstance(other, Py_Residue):
+            combined_str = other.one_letter_code + self.sequence
             return Py_AASequence.from_string(combined_str)
         return NotImplemented
 
