@@ -30,6 +30,7 @@ from .py_featuremap import Py_FeatureMap
 from .py_consensusmap import Py_ConsensusMap
 from .py_experimentaldesign import Py_ExperimentalDesign
 from .py_aasequence import Py_AASequence
+from .py_residue import Py_Residue
 from .py_identifications import (
     ProteinIdentifications,
     PeptideIdentifications,
@@ -109,6 +110,7 @@ __all__ = [
     "Py_ConsensusMap",
     "Py_ExperimentalDesign",
     "Py_AASequence",
+    "Py_Residue",
     "ProteinIdentifications",
     "PeptideIdentifications",
     "Identifications",

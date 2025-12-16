@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import pyopenms as oms
 
-from openms_python.py_aasequence import Py_AASequence
+from openms_python import Py_AASequence, Py_Residue
 
 
 def test_py_aasequence_from_string():
@@ -118,7 +118,7 @@ def test_py_aasequence_iteration():
     seq = Py_AASequence.from_string("PEPTIDE")
     residues = list(seq)
 
-    assert [res.sequence for res in residues] == ["P", "E", "P", "T", "I", "D", "E"]
+    assert [res.one_letter_code for res in residues] == ["P", "E", "P", "T", "I", "D", "E"]
     assert len(residues) == 7
 
 
@@ -126,9 +126,9 @@ def test_py_aasequence_indexing():
     """Test indexing into sequence."""
     seq = Py_AASequence.from_string("PEPTIDE")
 
-    assert seq[0].sequence == "P"
-    assert seq[1].sequence == "E"
-    assert seq[6].sequence == "E"
+    assert seq[0].one_letter_code == "P"
+    assert seq[1].one_letter_code == "E"
+    assert seq[6].one_letter_code == "E"
 
     # Test out of bounds
     with pytest.raises(IndexError):
@@ -284,8 +284,8 @@ def test_py_aasequence_to_string():
 
 def test_slicing():
     aa_seq = Py_AASequence.from_string('PEPTIDEM(Oxidation)R')
-    assert aa_seq[0].sequence == 'P'
-    assert aa_seq[-1].sequence == 'R'
+    assert aa_seq[0].one_letter_code == 'P'
+    assert aa_seq[-1].one_letter_code == 'R'
     assert aa_seq[1:4].sequence == 'EPT'
     assert aa_seq[-2:].sequence == 'M(Oxidation)R'
 
@@ -295,3 +295,33 @@ def test_count():
     assert aa_seq.count('P') == 2
     assert aa_seq.count('K') == 0
 
+def test_py_aasequence_addition():
+    """Test sequence concatenation with + operator."""
+    seq1 = Py_AASequence.from_string("PEP")
+    seq2 = Py_AASequence.from_string("TIDE")
+
+    # Test Py_AASequence + Py_AASequence
+    combined = seq1 + seq2
+    assert combined.sequence == "PEPTIDE"
+    assert len(combined) == 7
+
+    # Test Py_AASequence + str
+    combined2 = seq1 + "TIDE"
+    assert combined2.sequence == "PEPTIDE"
+
+    # Test str + Py_AASequence (radd)
+    combined3 = "PEP" + seq2
+    assert combined3.sequence == "PEPTIDE"
+
+    # Original sequences should be unchanged
+    assert seq1.sequence == "PEP"
+    assert seq2.sequence == "TIDE"
+
+    # Test adding with Py_Residue
+    residue = Py_Residue.from_string("K")
+    combined4 = seq1 + residue
+    assert combined4.sequence == "PEPK"
+
+    # Test chaining
+    combined5 = seq1 + seq2 + residue
+    assert combined5.sequence == "PEPTIDEK"
